@@ -5,8 +5,10 @@ import time
 import requests
 import telegram
 
-
-logging.basicConfig(filename="bot.log", level=logging.INFO)
+if os.getenv('HEROKU') is None:
+    logging.basicConfig(filename="bot.log", level=logging.INFO)
+else:
+    logging.basicConfig(level=logging.INFO)
 
 devman_token = os.getenv('DEVMAN_TOKEN')
 tg_token = os.getenv('TG_TOKEN')
