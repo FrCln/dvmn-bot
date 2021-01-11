@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+import traceback
 
 import requests
 import telegram
@@ -51,19 +52,22 @@ while True:
         time.sleep(5)
         continue
 
-    reviews = response.json()
-    if reviews['status'] == 'found':
-        timestamp = reviews['last_attempt_timestamp']
-        for attempt in reviews['new_attempts']:
-            msg = f'У вас проверена работа "{attempt["lesson_title"]}"\n'
-            if attempt['is_negative']:
-                msg += 'К сожалению, в работе нашлись ошибки.'
-            else:
-                msg += 'Работа принята!'
-            bot.send_message(chat_id=tg_chat_id, text=msg)
-    elif reviews['status'] == 'timeout':
-        timestamp = reviews['timestamp_to_request']
-    else:
-        logger.error(f'Unknown answer from server: {reviews}')
+    try:
+        reviews = response.json()
+        if reviews['status'] == 'found':
+            timestamp = reviews['last_attempt_timestamp']
+            for attempt in reviews['new_attempts']:
+                msg = f'У вас проверена работа "{attempt["lesson_title"]}"\n'
+                if attempt['is_negative']:
+                    msg += 'К сожалению, в работе нашлись ошибки.'
+                else:
+                    msg += 'Работа принята!'
+                bot.send_message(chat_id=tg_chat_id, text=msg)
+        elif reviews['status'] == 'timeout':
+            timestamp = reviews['timestamp_to_request']
+        else:
+            logger.error(f'Unknown answer from server: {reviews}')
 
-    params['timestamp'] = timestamp
+        params['timestamp'] = timestamp
+    except Exception:
+        logger.error(traceback.format_exc())
