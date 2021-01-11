@@ -5,10 +5,17 @@ import time
 import requests
 import telegram
 
-if os.getenv('HEROKU') is None:
-    logging.basicConfig(filename="bot.log", level=logging.INFO)
-else:
-    logging.basicConfig(level=logging.INFO)
+
+class TgLogsHandler(logging.Handler):
+    def __init__(self, bot, chat_id, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bot = bot
+        self.chat_id = chat_id
+
+    def emit(self, record):
+        msg = self.format(record)
+        self.bot.send_message(chat_id=self.chat_id, text=msg)
+
 
 devman_token = os.getenv('DEVMAN_TOKEN')
 tg_token = os.getenv('TG_TOKEN')
@@ -18,26 +25,34 @@ headers = {'Authorization': f'Token {devman_token}'}
 params = {}
 
 bot = telegram.Bot(token=tg_token)
-logging.info('Bot started.')
+
+logger = logging.getLogger("TelegramLogger")
+logger.setLevel(logging.INFO)
+logger.addHandler(TgLogsHandler(bot, tg_chat_id))
+logger.info('Bot started.')
 
 while True:
     try:
-        response = requests.get('https://dvmn.org/api/long_polling/', headers=headers, params=params, timeout=100)
+        response = requests.get(
+            'https://dvmn.org/api/long_polling/',
+            headers=headers,
+            params=params,
+            timeout=100
+        )
         response.raise_for_status()
     except requests.exceptions.ReadTimeout:
         continue
     except requests.exceptions.ConnectionError:
-        logging.error('Connection error. Retrying in 5 seconds...')
+        logger.error('Connection error. Retrying in 5 seconds...')
         time.sleep(5)
         continue
     except requests.HTTPError as ex:
-        logging.error(str(ex))
+        logger.error(str(ex))
         time.sleep(5)
         continue
 
     reviews = response.json()
     if reviews['status'] == 'found':
-        logging.info('New checked task found.')
         timestamp = reviews['last_attempt_timestamp']
         for attempt in reviews['new_attempts']:
             msg = f'У вас проверена работа "{attempt["lesson_title"]}"\n'
@@ -46,10 +61,9 @@ while True:
             else:
                 msg += 'Работа принята!'
             bot.send_message(chat_id=tg_chat_id, text=msg)
-            logging.info('Message sent.')
     elif reviews['status'] == 'timeout':
         timestamp = reviews['timestamp_to_request']
     else:
-        logging.error(f'Unknown answer from server: {reviews}')
+        logger.error(f'Unknown answer from server: {reviews}')
 
     params['timestamp'] = timestamp
