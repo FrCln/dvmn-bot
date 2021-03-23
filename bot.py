@@ -8,6 +8,9 @@ import requests
 import telegram
 
 
+logger = logging.getLogger("TelegramLogger")
+
+
 class TgLogsHandler(logging.Handler):
     def __init__(self, bot, chat_id, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -29,7 +32,6 @@ def main():
 
     bot = telegram.Bot(token=tg_token)
 
-    logger = logging.getLogger("TelegramLogger")
     logger.setLevel(logging.INFO)
     logger.addHandler(TgLogsHandler(bot, tg_chat_id))
     logger.info('Bot started.')
